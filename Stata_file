@@ -1,0 +1,55 @@
+/* Regression analyses of alcohol access on vehicle fatality rate */
+
+use "\\hd.ad.syr.edu\03\a8b775\Documents\Downloads\drunkdri.dta"
+ssc install estout
+
+/* one year */
+scatter vfrall beertax if (year==1988)
+regress vfrall beertax mlda if (year==1988), robust
+estimates store r1
+
+regress vfrall beertax mlda dry yngdrv vmiles perinc if (year==1988), robust
+estimates store r2
+
+/* all years (1982-88) */
+scatter vfrall beertax
+scatter vfrall mlda 
+regress vfrall beertax mlda dry yngdrv vmiles perinc, robust
+estimates store r3
+
+/* year fixed effects */
+egen byte y1982 = anymatch(year), values(1982)
+egen byte y1983 = anymatch(year), values(1983)
+egen byte y1984 = anymatch(year), values(1984)
+egen byte y1985 = anymatch(year), values(1985)
+egen byte y1986 = anymatch(year), values(1986)
+egen byte y1987 = anymatch(year), values(1987)
+egen byte y1988 = anymatch(year), values(1988)
+
+regress vfrall beertax mlda dry yngdrv vmiles perinc y1982 y1983 y1984 y1985 y1986 y1987, robust
+test y1982 y1983 y1984 y1985 y1986 y1987
+estimates store r4
+
+/* state fixed effects */
+areg vfrall beertax mlda dry yngdrv vmiles perinc y1982 y1983 y1984 y1985 y1986 y1987, absorb(state) robust
+estimates store r5
+
+/* non-linear assumptions for mlda */
+gen da18=(mlda<19)
+gen da19=(mlda>=19 & mlda<20)
+gen da20=(mlda>=20 & mlda<21)
+areg vfrall beertax da18 da19 da20 dry yngdrv vmiles perinc y1982 y1983 y1984 y1985 y1986 y1987, absorb(state) robust
+test da18 da19 da20
+estimates store r6
+
+gen mlda_sqr = mlda^2
+areg vfrall beertax mlda mlda_sqr dry yngdrv vmiles perinc y1982 y1983 y1984 y1985 y1986 y1987, absorb(state) robust
+estimates store r7 
+
+gen lnvfrall = log(vfrall)
+gen lnmlda = log(mlda)
+areg lnvfrall beertax lnmlda dry yngdrv vmiles perinc y1982 y1983 y1984 y1985 y1986 y1987, absorb(state) robust
+estimates store r8
+
+/* regression table */
+esttab r1 r2 r3 r4 r5 r6 r7 r8, cells(b(star fmt(3)) se(par fmt(2))) legend label varlabels(_cons Constant) stats(r2 df_r bic, fmt(3 0 1) label(R-sqr dfres BIC))
